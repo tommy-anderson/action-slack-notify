@@ -224,11 +224,30 @@ func envOr(name, def string) string {
 	return def
 }
 
+func replaceEnvVarsWithNames(s string) string {
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		if len(pair) == 2 {
+			envVarName := strings.ToUpper(pair[0])
+			envVarValue := pair[1]
+			// Replace the environment variable value with its uppercase name surrounded by special characters
+			s = strings.ReplaceAll(s, envVarValue, "<<<<"+envVarName+">>>>")
+		}
+	}
+	return s
+}
+
 func send(endpoint string, msg Webhook) error {
 	enc, err := json.Marshal(msg)
 	if err != nil {
 		return err
 	}
+
+	payloadStr := string(enc)
+	securePayloadStr := replaceEnvVarsWithNames(payloadStr)
+	fmt.Println("Secure Payload:", securePayloadStr)
+	fmt.Println(res.Status)
+
 	b := bytes.NewBuffer(enc)
 	res, err := http.Post(endpoint, "application/json", b)
 	if err != nil {
@@ -238,6 +257,5 @@ func send(endpoint string, msg Webhook) error {
 	if res.StatusCode >= 299 {
 		return fmt.Errorf("Error on message: %s\n", res.Status)
 	}
-	fmt.Println(res.Status)
 	return nil
 }
